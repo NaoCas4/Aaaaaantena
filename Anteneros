@@ -1,0 +1,105 @@
+#include <SPI.h>
+#include "LoRa.h"
+
+#define MISO         16 //21 físico
+#define CS_LORA      22 //17 - 29 físico
+#define MOSI         19 //25 físico
+#define DIO_0        10 //100000000 - 14 físico
+#define RST          26 //21 
+#define SCK          18 //24 físico
+
+// Indicadores
+#define LED_1     6   // Naranja
+#define LED_2     3   // Azul
+
+void lora_init() {
+  LoRa.setPins(CS_LORA, RST, DIO_0);
+  if (!LoRa.begin(915E6)) { 
+    Serial.println("Error al iniciar LoRa");
+    while (1);
+  }
+  Serial.println("iniciar LoRa exitoso");
+  LoRa.setSyncWord(0xB2);
+}
+
+    //LoRa.setSpreadingFactor(6);
+    //LoRa.setSignalBandwidth(125E3);
+    //LoRa.setTxPower(18);
+
+
+void loraSend(String data) {
+  LoRa.beginPacket();
+  LoRa.print(data);
+  LoRa.endPacket();
+}
+
+void blink(int pin, int time) {
+  digitalWrite(pin, HIGH);  
+  delay(time);               
+  digitalWrite(pin, LOW);   
+  delay(time);               
+}
+
+void setup() {
+  // initialize serial communication
+  Serial.begin(115200);
+
+  // Pines de LEDs, Buzzer y canales pirotécnicos como salidas
+  pinMode(LED_1, OUTPUT);
+  pinMode(LED_2, OUTPUT);
+
+
+  lora_init();
+
+  blink(LED_1, 200);
+  blink(LED_2, 200);
+}
+
+void loop() {
+  //sendIgnitionSignal();
+
+  sendActivationSignal(1); // Activación 1
+  delay(5000); // Espera 5 segundos
+  sendActivationSignal(2); // Activación 2
+  delay(5000); // Espera 5 segundos
+
+  reciveData();
+}
+
+void sendActivationSignal(int signal) {
+  String data;
+  switch(signal) {
+    case 1:
+      data = "A1";
+      break;
+    case 2:
+      data = "A2";
+      break;
+  }
+
+void reciveData() {
+  if (LoRa.parsePacket()) {
+    while (LoRa.available()) {
+      String data = LoRa.readString();
+      int rssi = LoRa.rssi();
+      Serial.println(data + "" + (String)+ "," + rssi );
+      handleActivation(data);
+      blink(LED_2,50);
+    }
+  }
+  //reciveData();
+}
+
+void handleActivation(String data) {
+  // decide qué hacer dependiendo de la señal de activación 
+  if (data == "A1") { 
+    Serial.println("Activación 1 recibida");
+    blink(LED_1, 200);
+  } else if (data == "A2") {
+    Serial.println("Activación 2 recibida");
+    blink(LED_2, 200);
+  } else {
+    // Señal de activación desconocida
+    Serial.println("Señal de activación desconocida: " + data);
+  }
+}
